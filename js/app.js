@@ -14,9 +14,22 @@ function paint(r){
  $("#updated").textContent="Updated "+new Date().toLocaleTimeString("en-GB",{hour12:false});
 }
 function mockCandles(){
- let a=[],p=2500;for(let i=0;i<100;i++){let drift=i<50?.8:-.25,noise=(Math.random()-.45)*4,o=p,c=p+drift+noise,h=Math.max(o,c)+Math.random()*3,l=Math.min(o,c)-Math.random()*3;a.push({time:Date.now()-(100-i)*60000,open:o,high:h,low:l,close:c,volume:500+Math.random()*500});p=c}return a;
-}
-async function load(){
+  // Deterministic demo candles: every browser/device receives the same data.
+  // Replace this function with the real XAU/USD 1M API when the backend is connected.
+  let a=[],p=2500,seed=73129;
+  const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
+  for(let i=0;i<120;i++){
+    const drift=(i<38?0.42:(i<72?-0.18:(i<98?0.31:-0.08)));
+    const noise=(rnd()-0.5)*1.8;
+    const o=p,c=p+drift+noise;
+    const h=Math.max(o,c)+(0.55+rnd()*1.8);
+    const l=Math.min(o,c)-(0.55+rnd()*1.8);
+    const volume=650+rnd()*650;
+    a.push({time:Date.now()-(120-i)*60000,open:o,high:h,low:l,close:c,volume});
+    p=c;
+  }
+  return a;
+}async function load(){
  // Production: fetch your MT5/broker bridge here.
  // Example: const r=await fetch('/api/xauusd/candles?tf=1m&limit=200'); const candles=await r.json();
  const candles=mockCandles(); paint(LumoraEngine.analyze(candles));
@@ -25,6 +38,7 @@ for(let i=0;i<58;i++){let c=document.createElement("i");c.className="candle";c.s
 function clock(){let d=new Date();$("#clock").textContent=d.toLocaleDateString("en-GB",{weekday:"short",day:"2-digit",month:"short",year:"numeric"})+" "+d.toLocaleTimeString("en-GB",{hour12:false})}clock();setInterval(clock,1000);
 let sec=31*60+13;setInterval(()=>{if(sec>0){sec--;let h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;$("#timer").textContent=[h,m,s].map(x=>String(x).padStart(2,"0")).join(":")}else{$("#newsLive").style.display="none";$("#released").style.display="flex"}},1000);
 load();
+setInterval(load, 60000);
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
 
 
