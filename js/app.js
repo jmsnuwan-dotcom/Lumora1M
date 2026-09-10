@@ -32,7 +32,7 @@ function mockCandles(){
 }async function load(){
  // Production: fetch your MT5/broker bridge here.
  // Example: const r=await fetch('/api/xauusd/candles?tf=1m&limit=200'); const candles=await r.json();
- const candles=mockCandles(); paint(LumoraEngine.analyze(candles));
+ const candles=mockCandles(); window.__lumoraCandles=candles; paint(LumoraEngine.analyze(candles,{sessions:LumoraEngine.sessionInfo()}));
 }
 for(let i=0;i<58;i++){let c=document.createElement("i");c.className="candle";c.style.left=(i*1.8-2)+"%";c.style.bottom=(18+Math.random()*50)+"%";c.style.height=(18+Math.random()*60)+"px";$("#candles").appendChild(c)}
 function clock(){let d=new Date();$("#clock").textContent=d.toLocaleDateString("en-GB",{weekday:"short",day:"2-digit",month:"short",year:"numeric"})+" "+d.toLocaleTimeString("en-GB",{hour12:false})}clock();setInterval(clock,1000);
@@ -157,6 +157,8 @@ async function loadNews(){
  const byId=new Map(stored.map(n=>[n.id,n]));
  fresh.forEach(n=>{if(!byId.has(n.id))byId.set(n.id,n);});
  newsEvents=[...byId.values()].sort((a,b)=>a.time-b.time);
+ // Recalculate market quality with the nearest upcoming high-impact news risk.
+ if(window.__lumoraCandles){ const mins=newsEvents.length?Math.max(0,(newsEvents[0].time.getTime()-Date.now())/60000):null; paint(LumoraEngine.analyze(window.__lumoraCandles,{sessions:LumoraEngine.sessionInfo(),newsMinutes:mins})); }
  localStorage.setItem(NEWS_KEY,JSON.stringify(newsEvents.map(n=>({...n,time:n.time.toISOString()}))));
  renderNews();
 }
