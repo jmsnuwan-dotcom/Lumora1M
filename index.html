@@ -55,11 +55,7 @@
   </div>
 </section>
 
-<section class="news">
-  <div class="nh"><span>▣　<b>UPCOMING NEWS</b>　(Next 1 Hour)</span><button>View All</button></div>
-  <div id="newsLive" class="nl"><span class="flag">🇺🇸</span><div class="copy"><b>USD — Core CPI m/m</b><small>Potential impact on XAU/USD</small><label>HIGH IMPACT</label></div><div class="timer"><b id="timer">00:31:13</b><small>Hours　 Minutes　 Seconds</small></div></div>
-  <div id="released" class="released">✓　<div><b>News Released</b><small>The scheduled news has been released. Market is stabilizing...</small></div></div>
-</section>
+<section class="news"><div class="nh"><span>▣　<b>UPCOMING NEWS</b>　<span>(Next 1 Hour)</span></span><button id="viewNews" type="button">View All</button></div><div id="newsList" class="news-list"></div><div id="newsEmpty" class="news-empty" hidden><span>✓</span><div><b>No upcoming USD news</b><small>Nothing scheduled for XAU/USD in the next hour.</small></div></div><div class="news-refresh">Live schedule • event-based countdown</div></section>
 
 <section class="states">
 <article class="good"><i>↗</i><b>GOOD<small>Conditions support trading</small></b></article>
@@ -74,5 +70,6 @@
   <span class="toast-icon">✓</span>
   <div><b id="installToastTitle">Lumora</b><small id="installToastText"></small></div>
 </div>
+<script src="js/news.js"></script>
 <script src="js/app.js"></script>
 </body></html>
