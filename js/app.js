@@ -36,7 +36,7 @@ function mockCandles(){
 }
 for(let i=0;i<58;i++){let c=document.createElement("i");c.className="candle";c.style.left=(i*1.8-2)+"%";c.style.bottom=(18+Math.random()*50)+"%";c.style.height=(18+Math.random()*60)+"px";$("#candles").appendChild(c)}
 function clock(){let d=new Date();$("#clock").textContent=d.toLocaleDateString("en-GB",{weekday:"short",day:"2-digit",month:"short",year:"numeric"})+" "+d.toLocaleTimeString("en-GB",{hour12:false})}clock();setInterval(clock,1000);
-let sec=31*60+13;setInterval(()=>{if(sec>0){sec--;let h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;$("#timer").textContent=[h,m,s].map(x=>String(x).padStart(2,"0")).join(":")}else{$("#newsLive").style.display="none";$("#released").style.display="flex"}},1000);
+
 load();
 setInterval(load, 60000);
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
@@ -103,11 +103,62 @@ window.addEventListener("appinstalled",()=>{
   toast("Lumora Installed","The app is ready on your device.");
 });
 
-// Larger live time directly below "1M • LIVE MARKET ANALYSIS".
+// Larger live local time + Forex session status.
 function updateMarketTime(){
-  if(!marketTime) return;
   const d=new Date();
-  marketTime.textContent=d.toLocaleTimeString("en-GB",{hour12:false});
+  if($("#marketTime")) $("#marketTime").textContent=d.toLocaleTimeString("en-GB",{hour12:false});
+  if($("#clock")) $("#clock").textContent=d.toLocaleDateString("en-GB",{weekday:"short",day:"2-digit",month:"short",year:"numeric"})+" "+d.toLocaleTimeString("en-GB",{hour12:false});
+  updateSession(d);
 }
-updateMarketTime();
-setInterval(updateMarketTime,1000);
+function hourInZone(d,tz){
+  const parts=new Intl.DateTimeFormat("en-US",{timeZone:tz,hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(d);
+  const h=Number(parts.find(x=>x.type==="hour").value),m=Number(parts.find(x=>x.type==="minute").value);
+  return h+(m/60);
+}
+function active(h,start,end){return h>=start&&h<end;}
+function updateSession(d){
+  const el=$("#sessionName"); if(!el)return;
+  const tok=hourInZone(d,"Asia/Tokyo"), lon=hourInZone(d,"Europe/London"), ny=hourInZone(d,"America/New_York");
+  const sessions=[];
+  if(active(tok,9,18)) sessions.push("TOKYO");
+  if(active(lon,8,17)) sessions.push("LONDON");
+  if(active(ny,8,17)) sessions.push("NEW YORK");
+  el.textContent=sessions.length?sessions.join(" • "):"OFF SESSION";
+}
+updateMarketTime();setInterval(updateMarketTime,1000);
+
+// Event-based XAU/USD news countdown. The API timestamp is absolute; refresh never resets it.
+const NEWS_KEY="lumora_xauusd_news_v6";
+let newsEvents=[], showAllNews=false;
+function safeNews(raw){
+ const arr=Array.isArray(raw)?raw:(raw?.events||raw?.data||raw?.news||[]);
+ return arr.map((x,i)=>{
+  const t=x.timestamp||x.releaseTime||x.datetime||x.dateTime||x.time||x.date;
+  const dt=new Date(typeof t==="number"?(t<2e12?t*1000:t):t);
+  const impact=String(x.impact||x.importance||"medium").toLowerCase();
+  return {id:String(x.id||i),country:x.country||"US",currency:x.currency||"USD",title:x.title||x.event||x.name||"Economic event",impact:impact.includes("high")||impact==="3"?"high":impact.includes("low")||impact==="1"?"low":"medium",time:dt};
+ }).filter(x=>Number.isFinite(x.time.getTime())&&(x.currency==="USD"||x.country==="US"));
+}
+function renderNews(){
+ const list=$("#newsList"), empty=$("#newsEmpty"); if(!list)return;
+ const now=Date.now(), cutoff=now+3600000;
+ newsEvents=newsEvents.filter(n=>n.time.getTime()>now&&n.time.getTime()<=cutoff);
+ const shown=showAllNews?newsEvents:newsEvents.slice(0,3); list.innerHTML="";
+ empty.hidden=shown.length>0;
+ shown.forEach(n=>{const row=document.createElement("div");row.className="news-item";row.innerHTML=`<div class="news-country">${escNews(n.country)}</div><div class="news-copy"><b>${escNews(n.currency)} — ${escNews(n.title)}</b><small>Potential impact on XAU/USD</small><label class="news-impact ${n.impact}">${n.impact} impact</label></div><div class="news-count"><b>${countdown(n.time.getTime()-now)}</b><small>Hours　 Minutes　 Seconds</small></div>`;list.appendChild(row);});
+}
+function escNews(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
+function countdown(ms){ms=Math.max(0,ms);let s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),x=s%60;return [h,m,x].map(v=>String(v).padStart(2,"0")).join(":");}
+async function loadNews(){
+ let fresh=[];
+ try{const r=await fetch("/api/news",{cache:"no-store"});if(r.ok)fresh=safeNews(await r.json());}catch(e){}
+ // Preserve absolute timestamps already known on this device. Never replace an existing event with a new +N-minutes timestamp.
+ let stored=[];try{stored=safeNews(JSON.parse(localStorage.getItem(NEWS_KEY)||"[]"));}catch(e){}
+ const byId=new Map(stored.map(n=>[n.id,n]));
+ fresh.forEach(n=>{if(!byId.has(n.id))byId.set(n.id,n);});
+ newsEvents=[...byId.values()].sort((a,b)=>a.time-b.time);
+ localStorage.setItem(NEWS_KEY,JSON.stringify(newsEvents.map(n=>({...n,time:n.time.toISOString()}))));
+ renderNews();
+}
+$("#viewNews")?.addEventListener("click",()=>{showAllNews=!showAllNews;$("#viewNews").textContent=showAllNews?"Show Less":"View All";renderNews();});
+loadNews();setInterval(renderNews,1000);setInterval(loadNews,300000);
