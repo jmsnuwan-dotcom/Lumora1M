@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#030506">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon.png">
+<link rel="stylesheet" href="styles.css">
+<title>Lumora — XAU/USD 1M Analysis</title>
+</head>
+<body class="neutral">
+<div class="bg"><div class="map"></div><div class="waves"></div><div id="candles"></div></div>
+<div class="app">
+<header>
+  <div class="brand"><img class="real-logo" src="lumora-logo.png" alt="Lumora"></div>
+  <div class="nav">XAU/USD ONLY　|　1 MINUTE LIVE ANALYSIS</div>
+  <div class="header-actions">
+    <button id="installBtn" class="install-btn" type="button">Install Lumora</button>
+    <span id="clock"></span>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="pair">XAU/USD</div>
+  <div class="live-title">1M • LIVE MARKET ANALYSIS</div>
+  <div id="marketTime" class="market-time">--:--:--</div>
+  <div id="card" class="card neutral">
+    <div class="ring"></div>
+    <div class="inside">
+      <strong id="icon">↔</strong>
+      <b id="status">NEUTRAL</b>
+      <span id="desc">Waiting for live market data</span>
+      <em id="confidence">Confidence —</em>
+    </div>
+  </div>
+</section>
+
+<section class="analysis">
+  <div class="analysis-head"><b>1M ANALYSIS ENGINE</b><span id="updated">Waiting for data</span></div>
+  <div class="metrics">
+    <article><small>MACD</small><b id="macd">—</b><span id="macdSub">No data</span></article>
+    <article><small>VOLUME</small><b id="volume">—</b><span id="volumeSub">No data</span></article>
+    <article><small>CHOP</small><b id="chop">—</b><span id="chopSub">No data</span></article>
+    <article><small>WICKS</small><b id="wicks">—</b><span id="wicksSub">No data</span></article>
+    <article><small>SIDEWAYS</small><b id="sideways">—</b><span id="sidewaysSub">No data</span></article>
+    <article><small>TREND</small><b id="trend">—</b><span id="trendSub">No data</span></article>
+  </div>
+  <div class="reasons">
+    <div><b>WHY?</b><span id="reason1">Waiting for candles…</span></div>
+    <div><span id="reason2"></span></div>
+    <div><span id="reason3"></span></div>
+    <div><span id="reason4"></span></div>
+  </div>
+</section>
+
+<section class="news">
+  <div class="nh"><span>▣　<b>UPCOMING NEWS</b>　(Next 1 Hour)</span><button>View All</button></div>
+  <div id="newsLive" class="nl"><span class="flag">🇺🇸</span><div class="copy"><b>USD — Core CPI m/m</b><small>Potential impact on XAU/USD</small><label>HIGH IMPACT</label></div><div class="timer"><b id="timer">00:31:13</b><small>Hours　 Minutes　 Seconds</small></div></div>
+  <div id="released" class="released">✓　<div><b>News Released</b><small>The scheduled news has been released. Market is stabilizing...</small></div></div>
+</section>
+
+<section class="states">
+<article class="good"><i>↗</i><b>GOOD<small>Conditions support trading</small></b></article>
+<article class="neutral"><i>↔</i><b>NEUTRAL<small>Mixed / unclear conditions</small></b></article>
+<article class="bad"><i>↓</i><b>BAD<small>Conditions are unfavorable</small></b></article>
+</section>
+</main>
+<footer><b>Lumora<small>FOREX MARKET INSIGHT</small></b><span>1M XAU/USD • MULTI-FACTOR ANALYSIS</span><span>ANALYSIS ONLY</span></footer>
+</div>
+<script src="js/engine.js"></script>
+<div id="installToast" class="install-toast" aria-live="polite">
+  <span class="toast-icon">✓</span>
+  <div><b id="installToastTitle">Lumora</b><small id="installToastText"></small></div>
+</div>
+<script src="js/app.js"></script>
+</body></html>
