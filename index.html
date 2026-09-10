@@ -26,6 +26,7 @@
   <div class="pair">XAU/USD</div>
   <div class="live-title">1M • LIVE MARKET ANALYSIS</div>
   <div id="marketTime" class="market-time">--:--:--</div>
+  <div class="session-line"><span class="session-label">SESSION</span><b id="sessionName">—</b></div>
   <div id="card" class="card neutral">
     <div class="ring"></div>
     <div class="inside">
@@ -55,7 +56,11 @@
   </div>
 </section>
 
-<section class="news"><div class="nh"><span>▣　<b>UPCOMING NEWS</b>　<span>(Next 1 Hour)</span></span><button id="viewNews" type="button">View All</button></div><div id="newsList" class="news-list"></div><div id="newsEmpty" class="news-empty" hidden><span>✓</span><div><b>No upcoming USD news</b><small>Nothing scheduled for XAU/USD in the next hour.</small></div></div><div class="news-refresh">Live schedule • event-based countdown</div></section>
+<section class="news">
+  <div class="nh"><span>▣　<b>UPCOMING NEWS</b>　<span>(Next 1 Hour)</span></span><button id="viewNews" type="button">View All</button></div>
+  <div id="newsList" class="news-list"></div>
+  <div id="newsEmpty" class="news-empty" hidden><span>✓</span><div><b>No XAU/USD news in the next hour</b><small>Upcoming relevant events will appear here automatically.</small></div></div>
+</section>
 
 <section class="states">
 <article class="good"><i>↗</i><b>GOOD<small>Conditions support trading</small></b></article>
@@ -70,6 +75,5 @@
   <span class="toast-icon">✓</span>
   <div><b id="installToastTitle">Lumora</b><small id="installToastText"></small></div>
 </div>
-<script src="js/news.js"></script>
 <script src="js/app.js"></script>
 </body></html>

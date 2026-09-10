@@ -49,3 +49,11 @@ SYNC FIX
 - This version uses a deterministic candle sequence, so all devices calculate the same demo GOOD/NEUTRAL/BAD result.
 - Service-worker cache is bumped to v4 and old Lumora caches are removed on activation.
 - Once the real XAU/USD 1M backend is connected, every device will read the same live market data instead of demo candles.
+
+
+V6 CHANGES
+- News countdown is event-timestamp based and preserved across refresh on the same device.
+- Expired news automatically disappears.
+- News section shows only upcoming XAU/USD-relevant USD events.
+- Added large live 24-hour time and dynamic Forex session display: TOKYO / LONDON / NEW YORK / overlaps.
+- IMPORTANT: api/news.js is still a DEMO endpoint. Replace it with a licensed live economic-calendar provider for production accuracy.
