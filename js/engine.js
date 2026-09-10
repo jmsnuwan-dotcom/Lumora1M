@@ -60,7 +60,14 @@ function analyze(c,ctx={}){
  if(newsMin!=null){if(newsMin<=10){quality-=25;reasons.push("High-impact news is very close") }else if(newsMin<=20){quality-=12;reasons.push("High-impact news is approaching")}else if(newsMin<=60){quality-=3;reasons.push("Upcoming news risk is present")}}
  // Normalize quality to roughly -100..100.
  quality=Math.max(-100,Math.min(100,quality));
- let status=quality>=38?"GOOD":quality<=-18?"BAD":"NEUTRAL";
+ // Hard market-quality guards: extreme chop + compression is not a tradeable 1M environment,
+ // even if another factor (for example ATR or volume) happens to look healthy.
+ let forcedBad=false;
+ if(ch!=null && sw!=null && ch>=70 && sw<1.20) forcedBad=true;
+ if(ch!=null && bb && ch>=61.8 && bb.width<0.0018) forcedBad=true;
+ if(vol.state==="dead" && sw!=null && sw<1.35) forcedBad=true;
+ let status=forcedBad?"BAD":quality>=38?"GOOD":quality<=-18?"BAD":"NEUTRAL";
+ if(forcedBad){ quality=Math.min(quality,-30); reasons.push("Market-quality guard: high chop and/or compression blocks 1M entries"); }
  // Confidence reflects strength and agreement, not direction.
  let evidence=Math.min(1,Math.abs(quality)/75), factorAgreement=Math.min(1,Math.max(0,agreement));
  let confidence=Math.round(Math.min(98,52+evidence*35+factorAgreement*11));
