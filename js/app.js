@@ -128,7 +128,7 @@ function updateSession(d){
 updateMarketTime();setInterval(updateMarketTime,1000);
 
 // Event-based XAU/USD news countdown. The API timestamp is absolute; refresh never resets it.
-const NEWS_KEY="lumora_xauusd_news_v6";
+const NEWS_KEY="lumora_xauusd_news_v9";
 let newsEvents=[], showAllNews=false;
 function safeNews(raw){
  const arr=Array.isArray(raw)?raw:(raw?.events||raw?.data||raw?.news||[]);
@@ -151,15 +151,10 @@ function escNews(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<"
 function countdown(ms){ms=Math.max(0,ms);let s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),x=s%60;return [h,m,x].map(v=>String(v).padStart(2,"0")).join(":");}
 async function loadNews(){
  let fresh=[];
- try{const r=await fetch("/api/news",{cache:"no-store"});if(r.ok)fresh=safeNews(await r.json());}catch(e){}
- // Preserve absolute timestamps already known on this device. Never replace an existing event with a new +N-minutes timestamp.
- let stored=[];try{stored=safeNews(JSON.parse(localStorage.getItem(NEWS_KEY)||"[]"));}catch(e){}
- const byId=new Map(stored.map(n=>[n.id,n]));
- fresh.forEach(n=>{if(!byId.has(n.id))byId.set(n.id,n);});
- newsEvents=[...byId.values()].sort((a,b)=>a.time-b.time);
- // Recalculate market quality with the nearest upcoming high-impact news risk.
+ try{const r=await fetch("/api/news?ts="+Date.now(),{cache:"no-store"});if(r.ok)fresh=safeNews(await r.json());}catch(e){}
+ // The API is the source of truth. Absolute event timestamps mean refreshes never reset countdowns.
+ newsEvents=fresh.sort((a,b)=>a.time-b.time);
  if(window.__lumoraCandles){ const mins=newsEvents.length?Math.max(0,(newsEvents[0].time.getTime()-Date.now())/60000):null; paint(LumoraEngine.analyze(window.__lumoraCandles,{sessions:LumoraEngine.sessionInfo(),newsMinutes:mins})); }
- localStorage.setItem(NEWS_KEY,JSON.stringify(newsEvents.map(n=>({...n,time:n.time.toISOString()}))));
  renderNews();
 }
 $("#viewNews")?.addEventListener("click",()=>{showAllNews=!showAllNews;$("#viewNews").textContent=showAllNews?"Show Less":"View All";renderNews();});
