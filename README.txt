@@ -42,3 +42,10 @@ LOCAL PWA TESTING
 Double-click START_LUMORA.bat instead of opening index.html directly.
 It opens Lumora at http://localhost:8765/, which gives Chrome/Edge the proper
 web origin needed for PWA installation. The old file:// error toast is disabled.
+
+
+SYNC FIX
+- The previous browser/app status could differ because the demo candle generator used Math.random().
+- This version uses a deterministic candle sequence, so all devices calculate the same demo GOOD/NEUTRAL/BAD result.
+- Service-worker cache is bumped to v4 and old Lumora caches are removed on activation.
+- Once the real XAU/USD 1M backend is connected, every device will read the same live market data instead of demo candles.
