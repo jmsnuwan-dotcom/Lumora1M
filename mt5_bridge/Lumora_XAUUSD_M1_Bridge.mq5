@@ -2,7 +2,7 @@
 #property version   "1.0"
 #property description "Lumora XAU/USD M1 live-data bridge. Analysis only; never sends or modifies trades."
 
-input string InpServerURL = "http://127.0.0.1:8765/api/xauusd/candles";
+input string InpServerURL = "https://lumora-m1.vercel.app/api/xauusd/candles";
 input string InpSymbol = "";          // blank = auto-detect XAUUSD/GOLD symbol
 input int    InpBars = 220;            // M1 bars to send, including the current forming candle
 input int    InpTimerSeconds = 5;      // polling interval
