@@ -54,29 +54,126 @@ function mockCandles(){
  for(let i=0;i<220;i++){const drift=(i<70?0.32:(i<140?-0.12:0.25)),noise=(rnd()-.5)*1.2,o=p,c=p+drift+noise,h=Math.max(o,c)+(.2+rnd()*1.0),l=Math.min(o,c)-(.2+rnd()*1.0);a.push({time:Date.now()-(220-i)*60000,open:o,high:h,low:l,close:c,volume:650+rnd()*650});p=c}
  return a;
 }
+function toEpochSeconds(v){
+ const n=Number(v);
+ if(Number.isFinite(n) && n>0) return n>2e12?n/1000:n;
+ const d=Date.parse(v);
+ return Number.isFinite(d)?d/1000:0;
+}
+
 async function fetchLive(){
  const u="/api/xauusd/candles?tf=1m&limit=220";
  try{
-   const r=await fetch(u+"&ts="+Date.now(),{cache:"no-store"});
-   if(!r.ok)return null;
+   const r=await fetch(u+"&ts="+Date.now(),{
+     cache:"no-store",
+     headers:{"Cache-Control":"no-cache"}
+   });
+   if(!r.ok){
+     console.warn("Lumora API HTTP",r.status);
+     return null;
+   }
+
    const j=await r.json();
    const c=Array.isArray(j)?j:(j.candles||j.data||[]);
-   const received=Number(j.received_at||0);
-   const fresh=j.live===true && received>0 && ((Date.now()/1000)-received)<=90;
-   if(!fresh || c.length<80)return null;
-   return {candles:c.map(x=>({time:x.time||x.datetime_utc||x.timestamp,open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close),volume:Number(x.volume??x.tick_volume??0)})),price:j.price,symbol:j.symbol,received_at:received};
- }catch(e){return null;}
+   if(!Array.isArray(c) || c.length<80) {
+     console.warn("Lumora API: insufficient candles",c?.length);
+     return null;
+   }
+
+   const liveFlag=(j.live===true || String(j.live).toLowerCase()==="true");
+   if(!liveFlag){
+     console.warn("Lumora API: live flag is not true",j.live);
+     return null;
+   }
+
+   const candles=c.map(x=>({
+     time:x.time||x.datetime_utc||x.timestamp,
+     open:Number(x.open),
+     high:Number(x.high),
+     low:Number(x.low),
+     close:Number(x.close),
+     volume:Number(x.volume??x.tick_volume??0)
+   })).filter(x=>
+     Number.isFinite(x.open)&&Number.isFinite(x.high)&&
+     Number.isFinite(x.low)&&Number.isFinite(x.close)
+   );
+
+   if(candles.length<80) return null;
+
+   // Do not reject valid MT5 live data just because received_at is
+   // missing or formatted differently. Prefer received_at, otherwise
+   // use the newest candle timestamp as the freshness check.
+   const received=toEpochSeconds(j.received_at);
+   const lastCandle=toEpochSeconds(candles[candles.length-1].time);
+   const freshnessBase=received||lastCandle;
+   const age=freshnessBase>0 ? (Date.now()/1000)-freshnessBase : 0;
+
+   // MT5 sends the CURRENT forming M1 candle. Allow a small clock/network
+   // tolerance and reject only clearly stale data.
+   if(freshnessBase>0 && (age>180 || age<-30)){
+     console.warn("Lumora API: stale/future data",{
+       received_at:j.received_at,
+       last_candle:candles[candles.length-1].time,
+       age_seconds:age
+     });
+     return null;
+   }
+
+   return {
+     candles,
+     price:Number.isFinite(Number(j.price))?Number(j.price):candles[candles.length-1].close,
+     symbol:j.symbol||"XAUUSD",
+     received_at:received||lastCandle
+   };
+ }catch(e){
+   console.error("Lumora live API error",e);
+   return null;
 }
 
 async function load(){
  const live=await fetchLive();
- const candles=live?live.candles:mockCandles();
- dataMode=live?"LIVE":"DEMO";
+
+ // Production dashboard must never silently present generated candles as
+ // if they were market data. If the MT5 bridge is unavailable, show a
+ // neutral/unavailable state instead.
+ dataMode=live?"LIVE":"UNAVAILABLE";
+
+ if(!live){
+   window.__lumoraCandles=[];
+   paint({
+     status:"NEUTRAL",
+     score:0,
+     total:7,
+     confidence:0,
+     price:null,
+     direction:"MIXED",
+     values:[],
+     currentValues:[],
+     contextValues:[],
+     contextGood:0,
+     currentGood:0,
+     reasons:[
+       "Live MT5 market data is unavailable.",
+       "Waiting for the XAU/USD M1 bridge."
+     ]
+   });
+   if($("#dataSource")){
+     $("#dataSource").textContent="LIVE DATA UNAVAILABLE";
+     $("#dataSource").className="demo";
+   }
+   if($("#sourceNote"))$("#sourceNote").textContent="Waiting for MT5 bridge — no demo market data";
+   return;
+ }
+
+ const candles=live.candles;
  window.__lumoraCandles=candles;
  const result=LumoraEngine.classify(candles,{sessions:LumoraEngine.sessionInfo?.()});
- if(live) { result.livePrice=live.price; result.price=live.price; result.currentCandle=true; }
+ result.livePrice=live.price;
+ result.price=live.price;
+ result.currentCandle=true;
+ dataMode="LIVE";
  paint(result);
- $("#sourceNote").textContent=live?`LIVE MT5 • ${live.symbol} • CURRENT FORMING M1 CANDLE`:`Waiting for MT5 bridge — showing demo data`;
+ $("#sourceNote").textContent=`LIVE MT5 • ${live.symbol} • CURRENT FORMING M1 CANDLE`;
 }
 for(let i=0;i<58;i++){let c=document.createElement("i");c.className="candle";c.style.left=(i*1.8-2)+"%";c.style.bottom=(18+Math.random()*50)+"%";c.style.height=(18+Math.random()*60)+"px";$("#candles").appendChild(c)}
 load();setInterval(load,5000);
