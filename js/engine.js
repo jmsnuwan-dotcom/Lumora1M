@@ -1,78 +1,78 @@
-/* Lumora XAU/USD 1M Multi-Factor Market Quality Engine.
-   GOOD = tradeable market environment (either bullish or bearish).
-   BAD = poor/unsafe market environment (chop, dead volatility, abnormal volatility, weak confirmation, etc.).
-   NEUTRAL = mixed evidence / transition.
+/* Lumora XAU/USD 1M — Hybrid Market Condition Engine V14
+   70% = last 5 COMPLETED M1 candles (stable market context)
+   30% = CURRENT FORMING M1 candle (live confirmation / warning)
+   Analysis only: never sends, modifies, or blocks trades.
 */
 function ema(a,p){if(!a.length)return 0;let k=2/(p+1),e=a[0];for(let i=1;i<a.length;i++)e=a[i]*k+e*(1-k);return e}
-function sma(a,p){if(a.length<p)return null;let x=a.slice(-p);return x.reduce((s,v)=>s+v,0)/p}
-function stdev(a,p){if(a.length<p)return null;let x=a.slice(-p),m=x.reduce((s,v)=>s+v,0)/p;return Math.sqrt(x.reduce((s,v)=>s+(v-m)**2,0)/p)}
-function atr(c,p=14){if(c.length<p+1)return null;let tr=[];for(let i=1;i<c.length;i++)tr.push(Math.max(c[i].high-c[i].low,Math.abs(c[i].high-c[i-1].close),Math.abs(c[i].low-c[i-1].close)));return tr.slice(-p).reduce((a,b)=>a+b,0)/p}
-function rsi(c,p=14){if(c.length<p+1)return null;let gains=0,losses=0;for(let i=c.length-p;i<c.length;i++){let d=c[i].close-c[i-1].close;if(d>0)gains+=d;else losses-=d}let ag=gains/p,al=losses/p;return al===0?100:100-(100/(1+ag/al))}
-function macd(c){let x=c.map(z=>z.close);let fast=ema(x,12),slow=ema(x,26),line=fast-slow;let histSeries=[];for(let i=0;i<x.length;i++){let q=x.slice(0,i+1);histSeries.push(ema(q,12)-ema(q,26))}let signal=ema(histSeries,9),hist=line-signal;return {line,signal,hist}}
-function volumeFactor(c){let v=c.slice(-21,-1).map(x=>Number(x.volume)||0);let avg=v.reduce((a,b)=>a+b,0)/Math.max(v.length,1)||1;return (Number(c.at(-1).volume)||0)/avg}
-function chop(c,p=14){if(c.length<p+1)return null;let trs=[];for(let i=c.length-p;i<c.length;i++)trs.push(Math.max(c[i].high-c[i].low,Math.abs(c[i].high-c[i-1].close),Math.abs(c[i].low-c[i-1].close)));let sum=trs.reduce((a,b)=>a+b,0),hi=Math.max(...c.slice(-p).map(x=>x.high)),lo=Math.min(...c.slice(-p).map(x=>x.low));return hi===lo?100:100*Math.log10(sum/(hi-lo))/Math.log10(p)}
-function wickInfo(c){let z=c.at(-1),range=z.high-z.low;if(!range)return {bull:0,bear:0,body:0,ratio:0};let body=Math.abs(z.close-z.open),up=z.high-Math.max(z.open,z.close),down=Math.min(z.open,z.close)-z.low;return {bull:down/range,bear:up/range,ratio:Math.max(up,down)/range,body:body/range}}
-function sideways(c,p=20){if(c.length<p)return null;let x=c.slice(-p),hi=Math.max(...x.map(z=>z.high)),lo=Math.min(...x.map(z=>z.low)),a=atr(c,14)||1;return (hi-lo)/(a*p)}
-function bollinger(c,p=20,k=2){let x=c.map(z=>z.close),m=sma(x,p),sd=stdev(x,p);if(m==null||!m)return null;return {mid:m,upper:m+k*sd,lower:m-k*sd,width:(2*k*sd)/m,position:(x.at(-1)-m)/(k*sd||1)}}
-function structure(c,p=10){if(c.length<p*2)return {direction:0,quality:0};let a=c.slice(-p),b=c.slice(-p*2,-p),ah=Math.max(...a.map(x=>x.high)),al=Math.min(...a.map(x=>x.low)),bh=Math.max(...b.map(x=>x.high)),bl=Math.min(...b.map(x=>x.low));let bull=ah>bh&&al>bl,bear=ah<bh&&al<bl;return {direction:bull?1:bear?-1:0,quality:bull||bear?1:0}}
-function volatility(c){let a=atr(c,14);if(!a)return {atr:null,ratio:null,state:"unknown"};let recent=[];for(let i=20;i<c.length;i++){let q=atr(c.slice(0,i+1),14);if(q)recent.push(q)}let avg=recent.slice(-50).reduce((s,v)=>s+v,0)/Math.max(recent.slice(-50).length,1);let ratio=a/(avg||a);return {atr:a,ratio,state:ratio<0.65?"dead":ratio>1.9?"extreme":ratio>0.9?"healthy":"soft"}}
-function sessionInfo(d=new Date()){
- const hour=(tz)=>{let p=new Intl.DateTimeFormat("en-US",{timeZone:tz,hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(d);return Number(p.find(x=>x.type==="hour").value)+Number(p.find(x=>x.type==="minute").value)/60};
- let s=[];if(hour("Asia/Tokyo")>=9&&hour("Asia/Tokyo")<18)s.push("TOKYO");if(hour("Europe/London")>=8&&hour("Europe/London")<17)s.push("LONDON");if(hour("America/New_York")>=8&&hour("America/New_York")<17)s.push("NEW YORK");return s;
+function atrWilder(c,p=8){if(c.length<p+1)return null;let tr=[];for(let i=1;i<c.length;i++)tr.push(Math.max(c[i].high-c[i].low,Math.abs(c[i].high-c[i-1].close),Math.abs(c[i].low-c[i-1].close)));let a=tr.slice(0,p).reduce((s,v)=>s+v,0)/p;for(let i=p;i<tr.length;i++)a=(a*(p-1)+tr[i])/p;return a}
+function rsiWilder(c,p=8){if(c.length<p+1)return null;let gains=0,losses=0;for(let i=1;i<=p;i++){let d=c[i].close-c[i-1].close;if(d>0)gains+=d;else losses-=d}let ag=gains/p,al=losses/p;for(let i=p+1;i<c.length;i++){let d=c[i].close-c[i-1].close,g=d>0?d:0,l=d<0?-d:0;ag=(ag*(p-1)+g)/p;al=(al*(p-1)+l)/p}return al===0?100:100-(100/(1+ag/al))}
+function adxWilder(c,p=14){
+ if(c.length<2*p+1)return {adx:null,diPlus:null,diMinus:null};
+ let trs=[],plus=[],minus=[];
+ for(let i=1;i<c.length;i++){
+   let h=c[i].high,l=c[i].low,ph=c[i-1].high,pl=c[i-1].low;
+   trs.push(Math.max(h-l,Math.abs(h-c[i-1].close),Math.abs(l-c[i-1].close)));
+   let up=h-ph,down=pl-l; plus.push(up>down&&up>0?up:0); minus.push(down>up&&down>0?down:0);
+ }
+ let tr=trs.slice(0,p).reduce((a,b)=>a+b,0),dp=plus.slice(0,p).reduce((a,b)=>a+b,0),dm=minus.slice(0,p).reduce((a,b)=>a+b,0),dx=[];
+ for(let i=p;i<trs.length;i++){
+   if(i>p){tr=tr-tr/p+trs[i];dp=dp-dp/p+plus[i];dm=dm-dm/p+minus[i]}
+   let dip=tr?100*dp/tr:0,dim=tr?100*dm/tr:0,den=dip+dim;dx.push(den?100*Math.abs(dip-dim)/den:0);
+ }
+ if(dx.length<p)return {adx:null,diPlus:null,diMinus:null};
+ let adx=dx.slice(0,p).reduce((a,b)=>a+b,0)/p;
+ for(let i=p;i<dx.length;i++)adx=(adx*(p-1)+dx[i])/p;
+ let tr2=trs.slice(0,p).reduce((a,b)=>a+b,0),dp2=plus.slice(0,p).reduce((a,b)=>a+b,0),dm2=minus.slice(0,p).reduce((a,b)=>a+b,0);
+ for(let i=p;i<trs.length;i++){tr2=tr2-tr2/p+trs[i];dp2=dp2-dp2/p+plus[i];dm2=dm2-dm2/p+minus[i]}
+ return {adx,diPlus:tr2?100*dp2/tr2:0,diMinus:tr2?100*dm2/tr2:0};
 }
-function analyze(c,ctx={}){
- if(!Array.isArray(c)||c.length<80)return {status:"NEUTRAL",confidence:0,reasons:["Need at least 80 one-minute candles","Waiting for XAU/USD live data"],direction:"MIXED"};
- let close=c.map(x=>Number(x.close)), price=close.at(-1), m=macd(c), vf=volumeFactor(c), ch=chop(c), w=wickInfo(c), sw=sideways(c), bb=bollinger(c), r=rsi(c), vol=volatility(c), st=structure(c);
- let e20=ema(close,20),e50=ema(close,50),e20prev=ema(close.slice(0,-5),20),slope=e20-e20prev;
- let trendDir=e20>e50&&price>e20?1:e20<e50&&price<e20?-1:0;
- let macDir=m.hist>0&&m.line>m.signal?1:m.hist<0&&m.line<m.signal?-1:0;
- let momentumDir=(macDir+(r!=null?(r>55?1:r<45?-1:0):0)); momentumDir=momentumDir>0?1:momentumDir<0?-1:0;
- let structureDir=st.direction;
- let directionalAgreement=[trendDir,macDir,momentumDir,structureDir].filter(x=>x!==0);
- let agreement=directionalAgreement.length?directionalAgreement.filter(x=>x===Math.sign(directionalAgreement.reduce((a,b)=>a+b,0))).length/directionalAgreement.length:0;
- let quality=0, reasons=[];
- // Directional coherence: a clear direction is useful, but does not decide GOOD/BAD by itself.
- if(directionalAgreement.length>=3 && agreement>=0.75){quality+=22;reasons.push((trendDir>0?"Bullish":"Bearish")+" structure is aligned across trend and momentum")}else if(directionalAgreement.length>=2 && agreement>=0.66){quality+=12;reasons.push("Trend and momentum are reasonably aligned")}else{quality-=8;reasons.push("Trend and momentum are not fully aligned")}
- // Momentum strength
- let histStrength=bb?Math.abs(m.hist)/(Math.max(vol.atr||1,0.0001)):Math.abs(m.hist);
- if(momentumDir!==0 && ((r>=55&&momentumDir>0)||(r<=45&&momentumDir<0))){quality+=10;reasons.push("MACD and RSI support the current momentum")}else if(r>=45&&r<=55){quality-=2;reasons.push("RSI is near balance; momentum edge is limited")}else quality+=4;
- // Healthy volatility: too low and too high are both bad for 1M scalping.
- if(vol.state==="healthy"){quality+=18;reasons.push("ATR volatility is in a healthy tradeable range")}else if(vol.state==="soft"){quality+=5;reasons.push("Volatility is slightly soft")}else if(vol.state==="dead"){quality-=24;reasons.push("ATR volatility is too low for clean 1M movement")}else if(vol.state==="extreme"){quality-=20;reasons.push("ATR volatility is abnormally high; whipsaw risk is elevated")}
- // Volume confirmation
- if(vf>=1.2){quality+=14;reasons.push("Volume confirms current price movement")}else if(vf<0.7){quality-=15;reasons.push("Volume is weak; movement lacks participation")}else {quality+=2;reasons.push("Volume is average")}
- // CHOP
- if(ch<38.2){quality+=14;reasons.push("Low CHOP: directional conditions are cleaner")}else if(ch<=55){quality+=5;reasons.push("CHOP is moderate")}else if(ch<=61.8){quality-=8;reasons.push("CHOP is elevated; entries need caution")}else{quality-=24;reasons.push("High CHOP: market is choppy")}
- // Sideways / compression
- if(sw<1.15){quality-=22;reasons.push("Price is compressed/sideways")}
- else if(sw<1.55){quality-=6;reasons.push("Price structure is somewhat compressed")}
- else if(sw>2.2){quality+=8;reasons.push("Range expansion provides room for movement")}
- else quality+=4;
- // Wick quality: balanced is okay; extreme rejection against the dominant direction is a warning.
- let dominant=trendDir||momentumDir||structureDir;
- if(dominant!==0){let against=dominant>0?w.bear:w.bull, withDir=dominant>0?w.bull:w.bear;if(against>0.48&&against>withDir*1.25){quality-=10;reasons.push("Strong rejection wick conflicts with the current direction")}else if(withDir>0.28&&withDir>against*1.15){quality+=6;reasons.push("Wick structure supports the current direction")}else quality+=2}
- // Bollinger width / location as an extra volatility-quality check.
- if(bb){if(bb.width<0.0018){quality-=12;reasons.push("Bollinger width is very tight") } else if(bb.width>0.012){quality-=8;reasons.push("Bollinger width is unusually wide") }
-   if(Math.abs(bb.position)>2.2){quality-=5;reasons.push("Price is stretched outside the normal Bollinger zone")}}
- // Session context
- const sessions=ctx.sessions||sessionInfo(); if(sessions.length){quality+=3;reasons.push("Active liquidity session: "+sessions.join(" • "))}else{quality-=5;reasons.push("Outside the main London/New York/Tokyo session windows")}
- // News proximity: optional context from the news engine. Major news close to release reduces tradeability.
- const newsMin=Number.isFinite(ctx.newsMinutes)?ctx.newsMinutes:null;
- if(newsMin!=null){if(newsMin<=10){quality-=25;reasons.push("High-impact news is very close") }else if(newsMin<=20){quality-=12;reasons.push("High-impact news is approaching")}else if(newsMin<=60){quality-=3;reasons.push("Upcoming news risk is present")}}
- // Normalize quality to roughly -100..100.
- quality=Math.max(-100,Math.min(100,quality));
- // Hard market-quality guards: extreme chop + compression is not a tradeable 1M environment,
- // even if another factor (for example ATR or volume) happens to look healthy.
- let forcedBad=false;
- if(ch!=null && sw!=null && ch>=70 && sw<1.20) forcedBad=true;
- if(ch!=null && bb && ch>=61.8 && bb.width<0.0018) forcedBad=true;
- if(vol.state==="dead" && sw!=null && sw<1.35) forcedBad=true;
- let status=forcedBad?"BAD":quality>=38?"GOOD":quality<=-18?"BAD":"NEUTRAL";
- if(forcedBad){ quality=Math.min(quality,-30); reasons.push("Market-quality guard: high chop and/or compression blocks 1M entries"); }
- // Confidence reflects strength and agreement, not direction.
- let evidence=Math.min(1,Math.abs(quality)/75), factorAgreement=Math.min(1,Math.max(0,agreement));
- let confidence=Math.round(Math.min(98,52+evidence*35+factorAgreement*11));
- if(status==="NEUTRAL")confidence=Math.round(Math.min(74,50+Math.abs(quality)*0.65+factorAgreement*8));
- let direction=dominant>0?"BULLISH":dominant<0?"BEARISH":"MIXED";
- return {status,confidence,quality,price,macd:m.hist,macdLine:m.line,volume:vf,chop:ch,wicks:w,sideways:sw,trend:trendDir,rsi:r,bollinger:bb,atr:vol.atr,volatilityRatio:vol.ratio,volatilityState:vol.state,structure:st.direction,direction,sessions,reasons:reasons.slice(-4)};
+function candleInfo(z){let range=z.high-z.low;if(range<=0)return {range:0,body:0,bodyRatio:0,upperWick:0,lowerWick:0,wickRejection:0};let body=Math.abs(z.close-z.open),up=z.high-Math.max(z.open,z.close),down=Math.min(z.open,z.close)-z.low;return {range,body,bodyRatio:body/range,upperWick:up/range,lowerWick:down/range,wickRejection:Math.max(up,down)/range}}
+function calc(c){
+ if(!Array.isArray(c)||c.length<80)return null;
+ let close=c.map(x=>Number(x.close)),n=close.length,last=c[n-1];
+ let e5=ema(close,5),e12=ema(close,12),gap=e5-e12,prev5=ema(close.slice(0,-1),5),slope=e5-prev5;
+ let rsi=rsiWilder(c,8),adx=adxWilder(c,14),a8=atrWilder(c,8);
+ let atrs=[];for(let i=9;i<c.length;i++){let q=atrWilder(c.slice(0,i+1),8);if(q!=null)atrs.push(q)}
+ let atrAvg=atrs.slice(-10).reduce((s,v)=>s+v,0)/Math.max(1,Math.min(10,atrs.length)),atrRatio=a8/(atrAvg||a8),ci=candleInfo(last);
+ let diDiff=(adx.diPlus??0)-(adx.diMinus??0),bullish=gap>=0;
+ let dSlope=bullish?slope:-slope,dGap=bullish?gap:-gap,dDi=bullish?diDiff:-diDiff,dRsi=bullish?rsi:100-rsi;
+ return {price:last.close,ema5:e5,ema12:e12,emaSlope:slope,emaGap:gap,directionalSlope:dSlope,directionalGap:dGap,diPlus:adx.diPlus,diMinus:adx.diMinus,diDiff,directionalDiDiff:dDi,rsi,directionalRsi:dRsi,adx:adx.adx,atr:a8,atrAvg,atrRatio,bodyRatio:ci.bodyRatio,upperWick:ci.upperWick,lowerWick:ci.lowerWick,wickRejection:ci.wickRejection,direction:bullish?"BULLISH":"BEARISH",time:last.time,currentCandle:true};
 }
-window.LumoraEngine={analyze,sessionInfo};
+const RANGES=[
+ {key:"directionalSlope",label:"EMA Slope",good:x=>x>=0.46,bad:x=>x<0.22,fmt:x=>x.toFixed(3),unit:""},
+ {key:"directionalGap",label:"EMA Gap",good:x=>x>=0.79,bad:x=>x<0.42,fmt:x=>x.toFixed(3),unit:""},
+ {key:"directionalDiDiff",label:"DI Diff",good:x=>x>=19,bad:x=>x<4,fmt:x=>x.toFixed(1),unit:""},
+ {key:"directionalRsi",label:"Directional RSI",good:x=>x>=65,bad:x=>x<56,fmt:x=>x.toFixed(1),unit:""},
+ {key:"adx",label:"ADX",good:x=>x>=36.7&&x<=46.8,bad:x=>x<21||x>52,fmt:x=>x.toFixed(1),unit:""},
+ {key:"atrRatio",label:"ATR Ratio",good:x=>x>=1.08&&x<=1.18,bad:x=>x<0.92||x>1.55,fmt:x=>x.toFixed(2),unit:"×"},
+ {key:"bodyRatio",label:"Body Ratio",good:x=>x<=0.45,bad:x=>x>0.62,fmt:x=>x.toFixed(2),unit:""}
+];
+function classifyOne(v){
+ return RANGES.map(q=>{let x=v[q.key],state=Number.isFinite(x)?(q.good(x)?"GOOD":q.bad(x)?"BAD":"NEUTRAL"):"NEUTRAL";return {...q,value:x,state}});
+}
+function majorityState(historyValues,index){
+ let counts={GOOD:0,BAD:0,NEUTRAL:0};historyValues.forEach(v=>counts[v[index].state]++);
+ if(counts.GOOD>=3)return "GOOD";if(counts.BAD>=3)return "BAD";return "NEUTRAL";
+}
+function classify(c){
+ if(!Array.isArray(c)||c.length<85)return {status:"NEUTRAL",score:0,total:RANGES.length,confidence:0,values:[],currentValues:[],contextValues:[],contextGood:0,currentGood:0,reasons:["Need at least 85 M1 candles.","Waiting for XAU/USD data."]};
+ // The last candle is CURRENT/forming. Build the stable context from the five candles before it.
+ const completed=c.slice(0,-1), current=calc(c), snapshots=[];
+ for(let k=5;k>=1;k--){const end=completed.length-(k-1);const snap=calc(completed.slice(0,end));if(snap)snapshots.push({calc:snap,values:classifyOne(snap)});}
+ if(!current||snapshots.length<5)return {status:"NEUTRAL",score:0,total:RANGES.length,confidence:0,values:[],currentValues:[],contextValues:[],contextGood:0,currentGood:0,reasons:["Building five-candle context…"]};
+ const currentValues=classifyOne(current);
+ const contextValues=RANGES.map((q,i)=>{const state=majorityState(snapshots.map(s=>s.values),i);const nums=snapshots.map(s=>s.calc[q.key]).filter(Number.isFinite);const avg=nums.reduce((a,b)=>a+b,0)/Math.max(1,nums.length);return {...q,value:avg,state,window:5};});
+ const contextGood=contextValues.filter(x=>x.state==="GOOD").length;
+ const currentGood=currentValues.filter(x=>x.state==="GOOD").length;
+ const weightedScore=contextGood*0.70+currentGood*0.30;
+ const status=weightedScore>=4?"GOOD":weightedScore<=2.4?"BAD":"NEUTRAL";
+ const confidence=Math.round(status==="GOOD"?62+weightedScore*4:status==="BAD"?60+(7-weightedScore)*3:56+Math.abs(weightedScore-3.5)*2);
+ const reasons=[];
+ reasons.push(`Past 5 completed M1 candles: ${contextGood}/7 GOOD factors`);
+ reasons.push(`Current forming M1 candle: ${currentGood}/7 GOOD factors`);
+ const weak=currentValues.filter(x=>x.state==="BAD").slice(0,2).map(x=>x.label+" is weak now");
+ const strong=currentValues.filter(x=>x.state==="GOOD").slice(0,2).map(x=>x.label+" confirms the context");
+ if(strong.length)reasons.push(...strong);if(weak.length)reasons.push(...weak);
+ return {status,score:Number(weightedScore.toFixed(1)),total:7,confidence,values:currentValues,currentValues,contextValues,contextGood,currentGood,contextWeight:70,currentWeight:30,reasons:reasons.slice(0,5),...current};
+}
+window.LumoraEngine={classify,calc,RANGES};
