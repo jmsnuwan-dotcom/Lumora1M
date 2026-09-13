@@ -128,6 +128,7 @@ async function fetchLive(){
  }catch(e){
    console.error("Lumora live API error",e);
    return null;
+ }
 }
 
 async function load(){
