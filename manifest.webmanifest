@@ -1,0 +1,14 @@
+{
+  "name":"Lumora XAU/USD 1M",
+  "short_name":"Lumora",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "background_color":"#020405",
+  "theme_color":"#030506",
+  "description":"Lumora XAU/USD live 1-minute market analysis",
+  "icons":[
+    {"src":"icons/lumora-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"icons/lumora-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}

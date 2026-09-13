@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#030506">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon.png">
+<link rel="stylesheet" href="styles.css">
+<title>Lumora — XAU/USD 1M Analysis</title>
+</head>
+<body class="neutral">
+<div class="bg"><div class="map"></div><div class="waves"></div><div id="candles"></div></div>
+<div class="app">
+<header>
+  <div class="brand"><img class="real-logo" src="lumora-logo.png" alt="Lumora"></div>
+  <div class="nav">XAU/USD ONLY　|　1 MINUTE LIVE ANALYSIS</div>
+  <div class="header-actions">
+    <button id="installBtn" class="install-btn" type="button">Install Lumora</button>
+    <span id="clock"></span>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="pair">XAU/USD</div>
+  <div class="live-title">1M • LIVE MARKET ANALYSIS</div>
+  <div id="marketTime" class="market-time">--:--:--</div>
+  <div class="session-line"><span class="session-label">SESSION</span><b id="sessionName">—</b></div>
+  <div id="card" class="card neutral">
+    <div class="ring"></div>
+    <div class="inside">
+      <strong id="icon">↔</strong>
+      <b id="status">NEUTRAL</b>
+      <span id="desc">Waiting for live market data</span>
+      <em id="confidence">Confidence —</em>
+    </div>
+  </div>
+</section>
+
+<section class="analysis">
+  <div class="analysis-head"><b>HISTORICAL RANGE ENGINE</b><span id="updated">Waiting for data</span></div>
+  <div class="data-strip"><span id="dataSource" class="demo">DEMO DATA</span><span id="sourceNote">Loading candle feed…</span><span>LIVE current M1 • refresh 5s</span></div>
+  <div class="hybrid-box" id="hybridBox">
+    <div class="hybrid-head"><b>HYBRID MARKET ENGINE</b><span>70% context • 30% live confirmation</span></div>
+    <div class="hybrid-grid">
+      <div><small>PAST 5 COMPLETED M1</small><b id="contextScore">—</b><span>Stable market context</span></div>
+      <div><small>CURRENT FORMING M1</small><b id="currentScore">—</b><span>Live confirmation</span></div>
+      <div><small>DECISION</small><b id="hybridDecision">—</b><span>Context leads; current confirms</span></div>
+    </div>
+  </div>
+  <div class="good-profile" id="goodProfile">
+    <div class="gp-head"><b>🟢 GOOD MARKET PROFILE</b><span>Historical GOOD ranges</span></div>
+    <div class="gp-grid">
+      <div><small>EMA SLOPE</small><b>≥ 0.46</b><span id="gpSlope">Current —</span></div>
+      <div><small>EMA GAP</small><b>≥ 0.79</b><span id="gpGap">Current —</span></div>
+      <div><small>DI DIFF</small><b>≥ 19</b><span id="gpDi">Current —</span></div>
+      <div><small>DIRECTIONAL RSI</small><b>≥ 65</b><span id="gpRsi">Current —</span></div>
+      <div><small>ADX</small><b>36.7–46.8</b><span id="gpAdx">Current —</span></div>
+      <div><small>ATR RATIO</small><b>1.08–1.18×</b><span id="gpAtr">Current —</span></div>
+      <div><small>BODY RATIO</small><b>≤ 0.45</b><span id="gpBody">Current —</span></div>
+    </div>
+  </div>
+  <div class="price-strip">
+    <div><small>XAU/USD PRICE</small><b id="price">—</b></div>
+    <div><small>DIRECTION</small><b id="direction">—</b><span id="directionSub">EMA 5 / EMA 12</span></div>
+    <div><small>GOOD FACTORS</small><b id="score">—</b><span>Historical range score</span></div>
+  </div>
+  <div class="range-head"><span>INDICATOR</span><span>CURRENT M1</span><span>HISTORICAL GOOD</span><span>STATE</span></div>
+  <div id="metricList" class="metric-list">
+    <div id="metric0" class="metric-row"><b id="m0">EMA Slope</b><strong id="v0">—</strong><small id="rg0">GOOD ≥ 0.46</small><em id="s0">—</em></div>
+    <div id="metric1" class="metric-row"><b id="m1">EMA Gap</b><strong id="v1">—</strong><small id="rg1">GOOD ≥ 0.79</small><em id="s1">—</em></div>
+    <div id="metric2" class="metric-row"><b id="m2">DI Diff</b><strong id="v2">—</strong><small id="rg2">GOOD ≥ 19</small><em id="s2">—</em></div>
+    <div id="metric3" class="metric-row"><b id="m3">Directional RSI</b><strong id="v3">—</strong><small id="rg3">GOOD ≥ 65</small><em id="s3">—</em></div>
+    <div id="metric4" class="metric-row"><b id="m4">ADX</b><strong id="v4">—</strong><small id="rg4">GOOD 36.7–46.8</small><em id="s4">—</em></div>
+    <div id="metric5" class="metric-row"><b id="m5">ATR Ratio</b><strong id="v5">—</strong><small id="rg5">GOOD 1.08–1.18×</small><em id="s5">—</em></div>
+    <div id="metric6" class="metric-row"><b id="m6">Body Ratio</b><strong id="v6">—</strong><small id="rg6">GOOD ≤ 0.45</small><em id="s6">—</em></div>
+  </div>
+  <div class="reasons">
+    <div><b>METHOD</b><span>Last 5 completed M1 candles = 70% • current forming M1 = 30%</span></div>
+    <div><b>WHY?</b><span id="reason1">Waiting for candles…</span></div>
+    <div><span id="reason2"></span></div>
+    <div><span id="reason3"></span></div>
+    <div><span id="reason4"></span></div>
+    <div><span id="reason5"></span></div>
+  </div>
+</section>
+
+<section class="news">
+  <div class="nh"><span>▣　<b>UPCOMING NEWS</b>　<span>(Next 1 Hour)</span></span><button id="viewNews" type="button">View All</button></div>
+  <div id="newsList" class="news-list"></div>
+  <div id="newsEmpty" class="news-empty" hidden><span>✓</span><div><b>No XAU/USD news in the next hour</b><small>Upcoming relevant events will appear here automatically.</small></div></div>
+</section>
+
+<section class="states">
+<article class="good"><i>↗</i><b>GOOD<small>Conditions support trading</small></b></article>
+<article class="neutral"><i>↔</i><b>NEUTRAL<small>Mixed / unclear conditions</small></b></article>
+<article class="bad"><i>↓</i><b>BAD<small>Conditions are unfavorable</small></b></article>
+</section>
+</main>
+<footer><b>Lumora<small>FOREX MARKET INSIGHT</small></b><span>1M XAU/USD • MULTI-FACTOR ANALYSIS</span><span>ANALYSIS ONLY</span></footer>
+</div>
+<script src="js/engine.js?v=14"></script>
+<div id="installToast" class="install-toast" aria-live="polite">
+  <span class="toast-icon">✓</span>
+  <div><b id="installToastTitle">Lumora</b><small id="installToastText"></small></div>
+</div>
+<script src="js/app.js?v=14"></script>
+</body></html>
