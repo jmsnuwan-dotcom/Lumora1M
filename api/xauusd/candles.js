@@ -8,7 +8,7 @@ import { put, head } from '@vercel/blob';
 
 const PATH = 'lumora/xauusd-m1-latest.json';
 const MAX_AGE_SECONDS = 90;
-const MAX_CANDLES = 220;
+const MAX_CANDLES = 250;
 
 let memorySnapshot = null;
 
@@ -18,34 +18,31 @@ function send(res, status, body) {
   return res.json(body);
 }
 
-function normalizeSnapshot(obj) {
-  const input = Array.isArray(obj) ? { candles: obj } : obj || {};
-  const candles = Array.isArray(input.candles) ? input.candles : [];
-  if (candles.length < 80) throw new Error('need at least 80 M1 candles');
-
-  const clean = candles.slice(-MAX_CANDLES).map((x) => ({
-    time: x.time ?? x.datetime_utc ?? x.timestamp,
-    open: Number(x.open),
-    high: Number(x.high),
-    low: Number(x.low),
-    close: Number(x.close),
-    volume: Number(x.volume ?? x.tick_volume ?? 0)
+function cleanCandles(items, label) {
+  if (!Array.isArray(items) || items.length < 100) throw new Error(label + ': need >=100 bars');
+  const clean = items.slice(-MAX_CANDLES).map(x => ({
+    time: Number(x.time ?? x.datetime_utc ?? x.timestamp),
+    open: Number(x.open), high: Number(x.high), low: Number(x.low),
+    close: Number(x.close), volume: Number(x.volume ?? x.tick_volume ?? 0)
   }));
-
   for (const c of clean) {
-    if (!Number.isFinite(Number(c.time)) || ![c.open,c.high,c.low,c.close,c.volume].every(Number.isFinite)) {
-      throw new Error('invalid candle data');
-    }
+    if (![c.time,c.open,c.high,c.low,c.close,c.volume].every(Number.isFinite) ||
+        c.time <= 0 || c.high < c.low || c.high < Math.max(c.open,c.close) || c.low > Math.min(c.open,c.close))
+      throw new Error(label + ': invalid candle');
   }
-
-  const now = Math.floor(Date.now() / 1000);
+  for (let i=1;i<clean.length;i++) if (clean[i].time <= clean[i-1].time) throw new Error(label + ': candles not chronological');
+  return clean;
+}
+function normalizeSnapshot(input) {
+  const tf = input?.timeframes;
+  if (!tf || !tf.M1 || !tf.M5 || !tf.M15) throw new Error('V4 requires M1, M5, M15 arrays');
+  const timeframes = Object.fromEntries(['M1','M5','M15'].map(t => [t,cleanCandles(tf[t],t)]));
+  const now = Math.floor(Date.now()/1000);
   return {
-    symbol: String(input.symbol || 'XAUUSD'),
-    timeframe: 'M1',
-    price: Number.isFinite(Number(input.price)) ? Number(input.price) : clean[clean.length - 1].close,
-    bar_time: Number(input.bar_time ?? clean[clean.length - 1].time),
-    received_at: now,
-    candles: clean
+    symbol: String(input.symbol || 'XAUUSD'), timeframe: 'MULTI',
+    price: Number.isFinite(Number(input.price)) ? Number(input.price) : timeframes.M1.at(-1).close,
+    bar_time: timeframes.M1.at(-1).time, received_at: now,
+    timeframes, candles: timeframes.M1
   };
 }
 
@@ -86,16 +83,16 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       const s = await loadSnapshot();
-      if (!s) return send(res, 200, { symbol: 'XAUUSD', timeframe: 'M1', live: false, received_at: null, bar_time: null, price: null, age_seconds: null, storage: process.env.BLOB_READ_WRITE_TOKEN ? 'blob' : 'memory', candles: [] });
+      if (!s) return send(res, 200, { symbol: 'XAUUSD', timeframe: 'MULTI', live: false, received_at: null, bar_time: null, price: null, age_seconds: null, storage: process.env.BLOB_READ_WRITE_TOKEN ? 'blob' : 'memory', candles: [], timeframes: {} });
       const age = Math.max(0, Date.now() / 1000 - Number(s.received_at || 0));
       const candles = Array.isArray(s.candles) ? s.candles.slice(-MAX_CANDLES) : [];
       return send(res, 200, {
-        symbol: s.symbol || 'XAUUSD', timeframe: 'M1',
-        live: age <= MAX_AGE_SECONDS && candles.length >= 80,
+        symbol: s.symbol || 'XAUUSD', timeframe: 'MULTI',
+        live: age <= MAX_AGE_SECONDS && candles.length >= 100 && !!s.timeframes?.M5 && !!s.timeframes?.M15,
         received_at: s.received_at, bar_time: s.bar_time, price: s.price,
         age_seconds: Number(age.toFixed(1)),
         storage: process.env.BLOB_READ_WRITE_TOKEN ? 'blob' : 'memory',
-        candles
+        candles, timeframes: s.timeframes || {}
       });
     }
 
