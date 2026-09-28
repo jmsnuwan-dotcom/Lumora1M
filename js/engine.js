@@ -38,41 +38,38 @@ function calc(c){
  let dSlope=bullish?slope:-slope,dGap=bullish?gap:-gap,dDi=bullish?diDiff:-diDiff,dRsi=bullish?rsi:100-rsi;
  return {price:last.close,ema5:e5,ema12:e12,emaSlope:slope,emaGap:gap,directionalSlope:dSlope,directionalGap:dGap,diPlus:adx.diPlus,diMinus:adx.diMinus,diDiff,directionalDiDiff:dDi,rsi,directionalRsi:dRsi,adx:adx.adx,atr:a8,atrAvg,atrRatio,bodyRatio:ci.bodyRatio,upperWick:ci.upperWick,lowerWick:ci.lowerWick,wickRejection:ci.wickRejection,direction:bullish?"BULLISH":"BEARISH",time:last.time,currentCandle:true};
 }
-const RANGES=[
- {key:"directionalSlope",label:"EMA Slope",good:x=>x>=0.46,bad:x=>x<0.22,fmt:x=>x.toFixed(3),unit:""},
- {key:"directionalGap",label:"EMA Gap",good:x=>x>=0.79,bad:x=>x<0.42,fmt:x=>x.toFixed(3),unit:""},
- {key:"directionalDiDiff",label:"DI Diff",good:x=>x>=19,bad:x=>x<4,fmt:x=>x.toFixed(1),unit:""},
- {key:"directionalRsi",label:"Directional RSI",good:x=>x>=65,bad:x=>x<56,fmt:x=>x.toFixed(1),unit:""},
- {key:"adx",label:"ADX",good:x=>x>=36.7&&x<=46.8,bad:x=>x<21||x>52,fmt:x=>x.toFixed(1),unit:""},
- {key:"atrRatio",label:"ATR Ratio",good:x=>x>=1.08&&x<=1.18,bad:x=>x<0.92||x>1.55,fmt:x=>x.toFixed(2),unit:"×"},
- {key:"bodyRatio",label:"Body Ratio",good:x=>x<=0.45,bad:x=>x>0.62,fmt:x=>x.toFixed(2),unit:""}
-];
-function classifyOne(v){
- return RANGES.map(q=>{let x=v[q.key],state=Number.isFinite(x)?(q.good(x)?"GOOD":q.bad(x)?"BAD":"NEUTRAL"):"NEUTRAL";return {...q,value:x,state}});
+// V4 provisional dimensionless rules. NOT historically calibrated on M5/M15.
+function frame(candles, tf) {
+  if (!Array.isArray(candles) || candles.length < 100) return null;
+  // Exclude current/forming bar for M5/M15. M1 is a warning only.
+  const closed = tf === 'M1' ? candles : candles.slice(0,-1);
+  const v=calc(closed);
+  if (!v || !Number.isFinite(v.atr) || v.atr <= 0) return null;
+  const slope=v.directionalSlope/v.atr, gap=v.directionalGap/v.atr;
+  const tests=[
+    ['EMA slope / ATR',slope,slope>=0.12,slope<0.025],
+    ['EMA gap / ATR',gap,gap>=0.35,gap<0.10],
+    ['DI diff',v.directionalDiDiff,v.directionalDiDiff>=12,v.directionalDiDiff<3],
+    ['Directional RSI',v.directionalRsi,v.directionalRsi>=58,v.directionalRsi<50],
+    ['ADX',v.adx,v.adx>=25&&v.adx<=55,v.adx<18],
+    ['ATR ratio',v.atrRatio,v.atrRatio>=0.95&&v.atrRatio<=1.4,v.atrRatio<0.8],
+    ['Body ratio',v.bodyRatio,v.bodyRatio>=0.25&&v.bodyRatio<=0.75,v.bodyRatio>0.88]
+  ];
+  const values=tests.map(([label,value,good,bad])=>({label,value,state:good?'GOOD':bad?'BAD':'NEUTRAL'}));
+  const good=values.filter(x=>x.state==='GOOD').length;
+  const bad=values.filter(x=>x.state==='BAD').length;
+  const status=good>=5&&bad<=1?'GOOD':good<=2||bad>=4?'BAD':'NEUTRAL';
+  return {tf,status,good,bad,values,direction:v.direction,barTime:closed.at(-1).time,price:v.price};
 }
-function majorityState(historyValues,index){
- let counts={GOOD:0,BAD:0,NEUTRAL:0};historyValues.forEach(v=>counts[v[index].state]++);
- if(counts.GOOD>=3)return "GOOD";if(counts.BAD>=3)return "BAD";return "NEUTRAL";
+function classify(timeframes) {
+  const m15=frame(timeframes?.M15,'M15'),m5=frame(timeframes?.M5,'M5'),m1=frame(timeframes?.M1,'M1');
+  if (!m15||!m5||!m1) return null;
+  const score=(m15.good*0.6+m5.good*0.3+m1.good*0.1);
+  // Main decision uses ONLY completed M15/M5 bars; M1 never flips status.
+  const aligned=m15.direction===m5.direction;
+  let candidate='NEUTRAL';
+  if (m15.status==='GOOD'&&m5.status==='GOOD'&&aligned) candidate='GOOD';
+  else if (m15.status==='BAD'&&m5.status==='BAD') candidate='BAD';
+  return {m15,m5,m1,candidate,score:Number(score.toFixed(1)),direction:aligned?m15.direction:'MIXED',warning:m1.status==='BAD'?'M1 weakness — warning only':'M1 '+m1.status};
 }
-function classify(c){
- if(!Array.isArray(c)||c.length<85)return {status:"NEUTRAL",score:0,total:RANGES.length,confidence:0,values:[],currentValues:[],contextValues:[],contextGood:0,currentGood:0,reasons:["Need at least 85 M1 candles.","Waiting for XAU/USD data."]};
- // The last candle is CURRENT/forming. Build the stable context from the five candles before it.
- const completed=c.slice(0,-1), current=calc(c), snapshots=[];
- for(let k=5;k>=1;k--){const end=completed.length-(k-1);const snap=calc(completed.slice(0,end));if(snap)snapshots.push({calc:snap,values:classifyOne(snap)});}
- if(!current||snapshots.length<5)return {status:"NEUTRAL",score:0,total:RANGES.length,confidence:0,values:[],currentValues:[],contextValues:[],contextGood:0,currentGood:0,reasons:["Building five-candle context…"]};
- const currentValues=classifyOne(current);
- const contextValues=RANGES.map((q,i)=>{const state=majorityState(snapshots.map(s=>s.values),i);const nums=snapshots.map(s=>s.calc[q.key]).filter(Number.isFinite);const avg=nums.reduce((a,b)=>a+b,0)/Math.max(1,nums.length);return {...q,value:avg,state,window:5};});
- const contextGood=contextValues.filter(x=>x.state==="GOOD").length;
- const currentGood=currentValues.filter(x=>x.state==="GOOD").length;
- const weightedScore=contextGood*0.70+currentGood*0.30;
- const status=weightedScore>=4?"GOOD":weightedScore<=2.4?"BAD":"NEUTRAL";
- const confidence=Math.round(status==="GOOD"?62+weightedScore*4:status==="BAD"?60+(7-weightedScore)*3:56+Math.abs(weightedScore-3.5)*2);
- const reasons=[];
- reasons.push(`Past 5 completed M1 candles: ${contextGood}/7 GOOD factors`);
- reasons.push(`Current forming M1 candle: ${currentGood}/7 GOOD factors`);
- const weak=currentValues.filter(x=>x.state==="BAD").slice(0,2).map(x=>x.label+" is weak now");
- const strong=currentValues.filter(x=>x.state==="GOOD").slice(0,2).map(x=>x.label+" confirms the context");
- if(strong.length)reasons.push(...strong);if(weak.length)reasons.push(...weak);
- return {status,score:Number(weightedScore.toFixed(1)),total:7,confidence,values:currentValues,currentValues,contextValues,contextGood,currentGood,contextWeight:70,currentWeight:30,reasons:reasons.slice(0,5),...current};
-}
-window.LumoraEngine={classify,calc,RANGES};
+window.LumoraMTF={classify};
