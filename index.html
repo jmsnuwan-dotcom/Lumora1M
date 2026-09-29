@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#030506">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/favicon.png">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=41">
 <title>Lumora — XAU/USD MTF Analysis</title>
 </head>
 <body class="neutral">
@@ -38,6 +38,17 @@
   </div>
 </section>
 
+<section class="regime-panel" aria-label="Live M1 market condition">
+ <div class="regime-heading"><div><span class="regime-live">● LIVE M1 REGIME</span><h2>MARKET CONDITION DETECTOR <small>12 TYPES</small></h2></div><span id="regimeUpdated">Waiting for MT5…</span></div>
+ <div class="regime-main">
+  <div class="regime-chart"><div class="regime-chart-top"><b>XAU/USD · M1</b><span>Last 25 candles · forming candle highlighted</span></div><svg id="regimeSvg" viewBox="0 0 560 195" preserveAspectRatio="none" role="img" aria-label="Live M1 candlestick preview"></svg><div class="regime-legend"><span>● CLOSED M1</span><span>◌ FORMING M1</span></div></div>
+  <div class="regime-current"><span class="regime-label">CURRENT MARKET</span><div class="regime-name" id="regimeName">WAITING FOR DATA</div><div class="regime-pill" id="regimeState">UNAVAILABLE</div><p id="regimeDescription">Waiting for live candles from the MT5 bridge.</p><div class="regime-factors" id="regimeFactors">—</div><div class="regime-warning" id="regimeLive">—</div></div>
+ </div>
+ <div class="regime-transition"><div class="regime-pulse">↗</div><div><span class="regime-label">DEVELOPING / WATCH NEXT</span><strong id="regimeNext">WAIT FOR DATA</strong><p id="regimeNextDesc">This is a watch condition, not a price prediction.</p></div></div>
+ <div class="regime-align" id="regimeAlign">M5 / M15 trend confirmation: waiting…</div>
+ <details class="regime-all"><summary>VIEW ALL 12 MARKET CONDITIONS</summary><div class="regime-types" id="regimeTypes"></div></details>
+ <p class="regime-disclaimer">Experimental candle-based classification. Transitions are possibilities, not predictions. Analysis only — does not switch the MT5 bot or place trades.</p>
+</section>
 <section class="analysis">
   <div class="analysis-head"><b>MULTI-TIMEFRAME MARKET ENGINE</b><span id="updated">Waiting for data</span></div>
   <div class="data-strip"><span id="dataSource" class="demo">LIVE DATA UNAVAILABLE</span><span id="sourceNote">Loading candle feed…</span><span>M15 / M5 closed • M1 warning • refresh 5s</span></div>
@@ -93,10 +104,11 @@
 </main>
 <footer><b>Lumora<small>FOREX MARKET INSIGHT</small></b><span>M15 / M5 XAU/USD • ANALYSIS ONLY</span><span>ANALYSIS ONLY</span></footer>
 </div>
-<script src="js/engine.js?v=40"></script>
+<script src="js/engine.js?v=41"></script>
+<script src="js/regime.js?v=41"></script>
 <div id="installToast" class="install-toast" aria-live="polite">
   <span class="toast-icon">✓</span>
   <div><b id="installToastTitle">Lumora</b><small id="installToastText"></small></div>
 </div>
-<script src="js/app.js?v=40"></script>
+<script src="js/app.js?v=41"></script>
 </body></html>
