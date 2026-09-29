@@ -14,7 +14,40 @@ function setStatus(status,reason) {
   el('#icon',labels[status][0]);el('#status',labels[status][1]);el('#desc',reason);
 }
 function renderFrame(id,f) {el('#'+id+'Status',f.status);el('#'+id+'Score',f.good+'/7');el('#'+id+'Direction',f.direction);}
+
+function regimeUnavailable(message){
+ el('#regimeName','DATA UNAVAILABLE');el('#regimeState','UNAVAILABLE');el('#regimeDescription',message);
+ el('#regimeNext','WAIT FOR LIVE DATA');el('#regimeNextDesc','No current condition can be assessed.');
+ el('#regimeLive','—');el('#regimeFactors','—');el('#regimeAlign','M5 / M15 confirmation unavailable');el('#regimeUpdated','Offline / stale');
+ const svg=$('#regimeSvg');if(svg)svg.replaceChildren();
+}
+function drawRegimeCandles(candles){
+ const svg=$('#regimeSvg');if(!svg)return;
+ const NS='http://www.w3.org/2000/svg',min=Math.min(...candles.map(x=>x.low)),max=Math.max(...candles.map(x=>x.high)),span=Math.max(.00001,max-min),y=v=>183-(v-min)/span*165;
+ svg.replaceChildren();
+ for(let i=0;i<5;i++){let line=document.createElementNS(NS,'line');line.setAttribute('x1',0);line.setAttribute('x2',560);line.setAttribute('y1',16+i*42);line.setAttribute('y2',16+i*42);line.setAttribute('class','regime-grid');svg.appendChild(line)}
+ candles.forEach((c,i)=>{
+  let x=12+i*21.3,up=c.close>=c.open,forming=i===candles.length-1;
+  let g=document.createElementNS(NS,'g');g.setAttribute('class','regime-candle '+(up?'up':'down')+(forming?' forming':''));
+  let wick=document.createElementNS(NS,'line');wick.setAttribute('x1',x);wick.setAttribute('x2',x);wick.setAttribute('y1',y(c.high));wick.setAttribute('y2',y(c.low));g.appendChild(wick);
+  let body=document.createElementNS(NS,'rect');body.setAttribute('x',x-5);body.setAttribute('width',10);body.setAttribute('y',Math.min(y(c.open),y(c.close)));body.setAttribute('height',Math.max(2,Math.abs(y(c.close)-y(c.open))));g.appendChild(body);svg.appendChild(g);
+ });
+}
+function renderRegime(candles,r){
+ const v=window.LumoraRegime?.detect(candles);if(!v){regimeUnavailable('Not enough completed M1 candles');return;}
+ const p=$('.regime-panel');p.dataset.state=v.state.toLowerCase();
+ el('#regimeName',v.index+'. '+v.name);el('#regimeState',v.state);el('#regimeDescription',v.description);
+ el('#regimeNext',v.developing);el('#regimeNextDesc',v.detail);el('#regimeLive',v.liveAlert);
+ el('#regimeFactors','Recent range: '+fmt(v.rangeRatio,2)+'× baseline  •  Tick volume: '+fmt(v.volumeRatio,2)+'× baseline');
+ el('#regimeAlign','M5: '+r.m5.direction+' ('+r.m5.status+')  •  M15: '+r.m15.direction+' ('+r.m15.status+')  •  '+(r.m5.direction===r.m15.direction?'Aligned':'Mixed directions'));
+ el('#regimeUpdated','Last completed M1: '+new Date(Number(v.closedTime)*1000).toLocaleTimeString('en-GB',{hour12:false}));
+ drawRegimeCandles(v.candles);
+ const list=$('#regimeTypes');if(list&&!list.children.length){v.allTypes.forEach((t,i)=>{let d=document.createElement('div');d.className='regime-type';d.dataset.type=i+1;let b=document.createElement('b');b.textContent=(i+1)+'. '+t[0];let small=document.createElement('small');small.textContent=t[2];d.append(b,small);list.appendChild(d)})}
+ if(list)list.querySelectorAll('.regime-type').forEach(d=>d.classList.toggle('active',Number(d.dataset.type)===v.index));
+}
+
 function renderUnavailable(note) {
+  regimeUnavailable(note);
   setStatus('NEUTRAL','LIVE DATA UNAVAILABLE');
   el('#dataSource','LIVE DATA UNAVAILABLE');$('#dataSource').className='demo';
   el('#sourceNote',note);el('#confidence','No current market assessment');
@@ -36,6 +69,7 @@ function acceptCandidate(r) {
   return lastAccepted;
 }
 function render(r,j) {
+  renderRegime(j.timeframes.M1,r);
   const status=acceptCandidate(r);
   const wait=pending?' • '+pending+' pending '+pendingCount+'/2 M5 closes':'';
   setStatus(status,'M15 trend + M5 confirmation'+wait);
